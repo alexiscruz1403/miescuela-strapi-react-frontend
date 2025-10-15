@@ -1,167 +1,173 @@
 import { fetchUtils } from 'react-admin';
-import { stringify } from 'query-string';
+import { API_URL } from '../services/api';
 
-const API_URL = 'http://localhost:6543/api';
-
+/**
+ * DataProvider para Strapi v4
+ * Recursos: usuarios, cursos, asistencias, modulos
+ */
 const httpClient = (url, options = {}) => {
   if (!options.headers) {
     options.headers = new Headers({ Accept: 'application/json' });
   }
-
-  const csrfToken = sessionStorage.getItem('csrf_token');
-  const accessToken = sessionStorage.getItem('access_token');
-  const refreshToken = sessionStorage.getItem('refresh_token');
-
-  if (csrfToken) {
-    options.headers.set('X-CSRF-Token', csrfToken);
+  const token = sessionStorage.getItem('access_token') || sessionStorage.getItem('jwt');
+  if (token) {
+    options.headers.set('Authorization', `Bearer ${token}`);
   }
-  if (accessToken) {
-    options.headers.set('Authorization', `Bearer ${accessToken}`);
-  }
-  if (refreshToken) {
-    options.headers.set('X-Refresh-Token', refreshToken);
-  }
-
-  options.credentials = 'include';
-
   return fetchUtils.fetchJson(url, options);
 };
 
-
-export const dataProvider = {
-
-
-  getList: (resource, params) => {
-    const { page, perPage } = params.pagination;
-    const { nombre_completo, id_rol } = params.filter;
-
-    const query = new URLSearchParams({
-        page,
-        perPage,
-        nombre_completo: nombre_completo || '',
-        id_rol: id_rol || '',
-    }).toString();
-
-    const url = `${API_URL}/${resource}?${query}`;
-
-    return httpClient(url).then(({ json }) => ({
-      data: json.data ? 
-        json.data.map(item => ({
-          ...item,
-          id: item.id_asistencia || item.id_alumno || item.id_docente || item.id_curso || item.id_rol || item.id_usuario || item.id
-        })) : 
-        json.map(item => ({
-          ...item,
-          id: item.id_asistencia || item.id_alumno || item.id_docente || item.id_curso || item.id_rol || item.id_usuario || item.id
-        })), 
-      total: json.total,
-    }));
-  },
-
-  getOne: (resource, params) =>
-    httpClient(`${API_URL}/${resource}/${params.id}`).then(({ json }) => ({
-      data: { 
-        ...json, 
-        id: json.id_asistencia || json.id_alumno || json.id_docente || json.id_curso || json.id_rol || json.id_usuario || json.id 
-      },
-    })),
-
-  getMany: (resource, params) => {
-    const query = { filter: JSON.stringify({ id: params.ids }) };
-    const url = `${API_URL}/${resource}?${stringify(query)}`;
-    return httpClient(url).then(({ json }) => ({ 
-      data: json.map(item => ({
-        ...item,
-        id: item.id_asistencia || item.id_alumno || item.id_docente || item.id_curso || item.id_rol || item.id_usuario || item.id
-      }))
-    }));
-  },
-
-  getManyReference: (resource, params) => {
-    const url = `${API_URL}/${resource}`;
-    return httpClient(url).then(({ json }) => ({
-      data: json,
-      total: json.length,
-    }));
-  },
-
-  create: (resource, params) =>
-    httpClient(`${API_URL}/${resource}`, {
-      method: 'POST',
-      body: JSON.stringify(params.data),
-    }).then(({ json }) => ({
-      data: { ...params.data, id: json.id || json.id_asistencia || json.id_usuario || json.insertId },
-    })),
-
-  update: (resource, params) =>
-    httpClient(`${API_URL}/${resource}/${params.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(params.data),
-    }).then(({ json }) => ({ data: {
-      ...json,
-      id: json.id_asistencia || json.id_alumno || json.id_docente || json.id_curso || json.id_rol || json.id_usuario || json.id
-    } })),
-
-  updateMany: (resource, params) =>
-    Promise.all(
-      params.ids.map(id =>
-        httpClient(`${API_URL}/${resource}/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify(params.data),
-        })
-      )
-    ).then(responses => ({ data: responses.map(({ json }) => json.id) })),
-
-  delete: (resource, params) =>
-    httpClient(`${API_URL}/${resource}/${params.id}`, {
-      method: 'DELETE',
-    }).then(({ json }) => ({ data: json })),
-
-  deleteMany: (resource, params) =>
-    Promise.all(
-      params.ids.map(id =>
-        httpClient(`${API_URL}/${resource}/${id}`, {
-          method: 'DELETE',
-        })
-      )
-    ).then(responses => ({ data: responses.map(({ json }) => json.id) })),
-
-    getAsistenciaCursoHoy: (id_curso) =>
-    httpClient(`${API_URL}/asistencias/curso/${id_curso}/hoy`)
-      .then(({ json }) => ({
-        data: json.map(item => ({
-          ...item,
-          id: item.id_asistencia,
-        })),
-        total: json.length,
-      })),
-
-
- getAlumnosCurso: (cursoId, fecha = hoyAR()) =>
-    httpClient(`${API_URL}/alumnos/curso/${cursoId}?fecha=${fecha}`)
-      .then(({ json }) => ({
-        data: json.map(a => ({
-          ...a,
-          id: a.id_alumno, // react-admin requiere "id"
-        })),
-      })),
-
-  // registrar/editar asistencia
-  registrarAsistenciaCurso: (cursoId, fecha, items) =>
-    httpClient(`${API_URL}/asistencias/curso`, {
-      method: 'POST',
-      body: JSON.stringify({ id_curso: cursoId, fecha, items }),
-    }).then(({ json }) => ({ data: json })),
-
-  // obtener asistencias de un curso en el día
-  getAsistenciaCursoHoy: (cursoId, fecha = hoyAR()) =>
-    httpClient(`${API_URL}/asistencias/curso/${cursoId}/hoy?fecha=${fecha}`)
-      .then(({ json }) => ({
-        data: json.map(a => ({
-          ...a,
-          id: a.id_asistencia || `${a.alumno_id}-${a.fecha}`,
-        })),
-      })),
-
+const buildPagination = (params) => {
+  const page = params?.pagination?.page || 1;
+  const pageSize = params?.pagination?.perPage || 25;
+  return `pagination[page]=${page}&pagination[pageSize]=${pageSize}`;
 };
 
+const toQuery = (obj = {}) =>
+  Object.entries(obj)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+
+const unwrap = (json) => json?.data ?? json;
+
+const dataProvider = {
+  getList: async (resource, params) => {
+    const pag = buildPagination(params);
+    let qs = pag;
+
+    if (resource === 'asistencias') {
+      const { anio_escolar, division } = params?.filter || {};
+      const populate = [
+        'populate[alumno][populate][user]=true',
+        'populate[alumno][populate][curso]=true',
+        'populate[estado]=true',
+      ].join('&');
+      const filters = toQuery({
+        'filters[alumno][curso][anio_escolar][$eq]': anio_escolar,
+        'filters[alumno][curso][division][$eq]': division,
+      });
+      qs = [pag, populate, filters].filter(Boolean).join('&');
+    } else if (params?.filter && Object.keys(params.filter).length) {
+      const generic = Object.entries(params.filter)
+        .map(([k, v]) => `filters[${encodeURIComponent(k)}][$eq]=${encodeURIComponent(v)}`)
+        .join('&');
+      qs = [pag, generic].filter(Boolean).join('&');
+    }
+
+    const url = `${API_URL}/${resource}?${qs}`;
+    const { json } = await httpClient(url);
+    const rows = Array.isArray(json?.data) ? json.data : [];
+    const total = json?.meta?.pagination?.total ?? rows.length;
+    const normalized = rows.map((item) => (item?.id ? item : { id: item?.id || item?.documentId, ...item }));
+    return { data: normalized, total };
+  },
+
+  getOne: async (resource, params) => {
+    const url = `${API_URL}/${resource}/${params.id}`;
+    const { json } = await httpClient(url);
+    const rec = json?.data || json;
+    return { data: rec };
+  },
+
+  create: async (resource, params) => {
+    let body = params.data;
+
+    if (resource === 'asistencias') {
+      body = {
+        id_alumno: params.data.id_alumno,
+        curso: params.data.curso,
+        estado: params.data.estado,
+      };
+    }
+
+    if (resource === 'usuarios') {
+      body = {
+        username: params.data.username,
+        email: params.data.email,
+        password: params.data.password,
+        legajo: params.data.legajo,
+        numero_documento: params.data.numero_documento,
+        role_name: params.data.role_name,
+      };
+    }
+
+    const { json } = await httpClient(`${API_URL}/${resource}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    const rec = json?.data || json;
+    const id = rec?.id || rec?.documentId;
+    return { data: { id, ...rec } };
+  },
+
+  update: async (resource, params) => {
+    let body = params.data;
+
+    if (resource === 'asistencias') {
+      body = { estado: params.data.estado };
+    }
+    if (resource === 'usuarios') {
+      body = {
+        username: params.data.username,
+        email: params.data.email,
+        password: params.data.password,
+        legajo: params.data.legajo,
+        numero_documento: params.data.numero_documento,
+        role_name: params.data.role_name,
+      };
+    }
+
+    const { json } = await httpClient(`${API_URL}/${resource}/${params.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    const rec = json?.data || json;
+    return { data: { id: params.id, ...rec } };
+  },
+
+  delete: async (resource, params) => {
+    const { json } = await httpClient(`${API_URL}/${resource}/${params.id}`, {
+      method: 'DELETE',
+    });
+    const rec = json?.data || json;
+    return { data: { id: params.id, ...rec } };
+  },
+
+  getMany: async (resource, params) => {
+    const results = await Promise.all(
+      params.ids.map((id) => httpClient(`${API_URL}/${resource}/${id}`))
+    );
+    const data = results.map(({ json }, idx) => {
+      const rec = json?.data || json;
+      return { id: params.ids[idx], ...rec };
+    });
+    return { data };
+  },
+
+  getManyReference: async (resource, params) => dataProvider.getList(resource, params),
+
+  // Helpers opcionales
+  getModulos: async () => {
+    const { json } = await httpClient(`${API_URL}/modulos`);
+    return json?.data || json;
+  },
+
+  getCursos: async () => {
+    const { json } = await httpClient(`${API_URL}/cursos?${buildPagination({})}`);
+    return json?.data || json;
+  },
+
+  getAsistencias: async ({ anio_escolar, division }) => {
+    const qs = [
+      `filters[alumno][curso][anio_escolar][$eq]=${encodeURIComponent(anio_escolar)}`,
+      `filters[alumno][curso][division][$eq]=${encodeURIComponent(division)}`,
+      'populate[alumno][populate][user]=true',
+      'populate[alumno][populate][curso]=true',
+      'populate[estado]=true',
+    ].join('&');
+    const { json } = await httpClient(`${API_URL}/asistencias?${qs}`);
+    return json?.data || [];
+  },
+};
+
+export default dataProvider;

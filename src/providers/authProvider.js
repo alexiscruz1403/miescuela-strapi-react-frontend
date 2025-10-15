@@ -1,23 +1,17 @@
 import { login as loginService, logout as logoutService } from '../services/auth';
 
 export const authProvider = {
-  login: async ({ username, password }) => {
+  login: async ({ username, email, identifier, password }) => {
     try {
-      const response = await loginService(username, password);
-      
-      if (response.csrf_token) {
-        sessionStorage.setItem('csrf_token', response.csrf_token);
+      const id = identifier || email || username;
+      const response = await loginService(id, password);
+
+      if (response?.jwt) {
+        sessionStorage.setItem('access_token', response.jwt);
       }
-      if (response.access_token) {
-        sessionStorage.setItem('access_token', response.access_token);
+      if (response?.user) {
+        sessionStorage.setItem('user', JSON.stringify(response.user));
       }
-      if (response.refresh_token) {
-        sessionStorage.setItem('refresh_token', response.refresh_token);
-      }
-      
-      sessionStorage.setItem('user', JSON.stringify(response.usuario));
-      sessionStorage.setItem('permissions', response.usuario.rol);
-      
       return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
@@ -43,32 +37,11 @@ export const authProvider = {
     return Promise.resolve();
   },
 
-  checkAuth: () => {
-    const token = sessionStorage.getItem('access_token');
-    return token ? Promise.resolve() : Promise.reject();
-  },
+  checkAuth: () =>
+    sessionStorage.getItem('access_token') ? Promise.resolve() : Promise.reject(),
 
   getPermissions: () => {
-    const role = sessionStorage.getItem('permissions');
-    return role ? Promise.resolve(role) : Promise.reject();
-  },
-
-  getIdentity: () => {
-    try {
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) return Promise.reject();
-      
-      const user = JSON.parse(userStr);
-      
-      return Promise.resolve({
-        id: user.id_usuario,
-        fullName: user.nombre_completo,
-        avatar: user.foto,
-        role: user.rol,
-        email: user.email,
-      });
-    } catch (error) {
-      return Promise.reject();
-    }
+    const perms = sessionStorage.getItem('permissions');
+    return Promise.resolve(perms || '');
   },
 };
