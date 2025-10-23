@@ -7,7 +7,7 @@ export const theme = createTheme({
   palette: {
     primary: {
       main: "#0A2E75", // azul principal
-      light: "#1252D3", 
+      light: "#1252D3",
       dark: "#061B46",
     },
     secondary: {
@@ -82,6 +82,19 @@ export const theme = createTheme({
         head: {
           fontWeight: 600,
           backgroundColor: '#f5f5f5',
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        root: {
+          '&.RaConfirm-root .RaConfirm-confirmPrimary': {
+            backgroundColor: '#D32F2F !important',
+            color: '#fff !important',
+            '&:hover': {
+              backgroundColor: '#B71C1C !important'
+            },
+          },
         },
       },
     },

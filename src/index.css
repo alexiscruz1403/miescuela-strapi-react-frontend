@@ -18,3 +18,30 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Global confirm button style for react-admin Confirm dialogs */
+.RaConfirm-confirmPrimary {
+  background-color: #D32F2F !important;
+  color: #fff !important;
+}
+.RaConfirm-confirmPrimary:hover {
+  background-color: #B71C1C !important;
+}
+
+/* Animacion de tablas */
+@keyframes pulseError {
+  0% {
+    background-color: rgba(255, 100, 100, 0.15);
+  }
+  50% {
+    background-color: rgba(255, 0, 0, 0.25);
+  }
+  100% {
+    background-color: rgba(255, 100, 100, 0.15);
+  }
+}
+
+.row-error-pulse td{
+  animation: pulseError 1s ease-in-out infinite;
+  animation-iteration-count: 3; /* 3 segundos aprox (1s x 3 ciclos) */
+}

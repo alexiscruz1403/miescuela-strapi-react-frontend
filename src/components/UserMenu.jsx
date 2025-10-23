@@ -32,7 +32,30 @@ export const UserMenu = () => {
 
   const { user, setUser } = useUser();
 
+  const getNombreApellido = (u = {}) => {
+    const apellido = u?.apellido;
+    const nombre = u?.nombre;
+    const composed = `${apellido} ${nombre}`.trim();
+    return composed;
+  };
+
   const navigate = useNavigate();
+
+  // Normaliza claves de rol a las esperadas por la UI
+  const mapRoleKey = (rolRaw) => {
+    if (!rolRaw) return 'alumno';
+    const s = String(rolRaw).toLowerCase();
+    if (s.includes('admin')) return 'administrador';
+    if (s.includes('director')) return 'director';
+    if (s.includes('docen')) return 'docente';
+    if (s.includes('auxil')) return 'auxiliar';
+    if (s.includes('alum') || s.includes('estud') || s.includes('student')) return 'alumno';
+    if(s.includes('tutor')) return 'tutor';
+    if(s.includes('asesor')) return 'asesor';
+    // por si viene exactamente una de las claves
+    if (['administrador', 'director', 'docente', 'auxiliar', 'alumno'].includes(s)) return s;
+    return 'alumno';
+  };
 
   // Configuración de avatares según rol
   const getRoleConfig = (rol) => {
@@ -57,16 +80,34 @@ export const UserMenu = () => {
         icon: <AdminPanelSettings />,
         label: 'Director'
       },
-      admin: {
+      administrador: {
         color: '#F44336',
         icon: <Settings />,
         label: 'Administrador'
+      },
+      asesor: {
+        color: '#6A1B9A',
+        icon: <SupervisedUserCircle />,
+        label: 'Asesor Pedagógico'
+      },
+      tutor: {
+        color: '#455A64',
+        icon: <Person />,
+        label: 'Tutor'
+      },
+      jefe_auxiliares: {
+        color: '#00897B',
+        icon: <AdminPanelSettings />,
+        label: 'Jefe de Auxiliares'
+
       }
     };
     return configs[rol] || configs.alumno;
   };
 
-  const roleConfig = getRoleConfig(user.rol);
+  const baseRole = user?.rol ?? (typeof window !== 'undefined' ? sessionStorage.getItem('permissions') : null) ?? (Array.isArray(user?.roles) ? user.roles[0]?.nombre_rol : null);
+  const roleKey = mapRoleKey(baseRole);
+  const roleConfig = getRoleConfig(roleKey);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -89,13 +130,13 @@ export const UserMenu = () => {
   };
 
   const handleLogout = async () => {
-    if(window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      try{
-        await logout(); 
+    if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
+      try {
+        await logout();
         setUser(null);
         sessionStorage.clear();
         navigate('/login');
-      }catch(error){
+      } catch (error) {
         console.error("Error al cerrar sesión:", error);
       }
     }
@@ -104,17 +145,16 @@ export const UserMenu = () => {
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      {/* Fecha actual (reemplaza el free trial) */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <CalendarMonth sx={{ fontSize: 16, color: '#666' }} />
-        <Typography variant="body2" sx={{ 
+        <Typography variant="body2" sx={{
           color: '#666',
           fontSize: '0.8rem',
           fontWeight: 500
         }}>
-          {new Date().toLocaleDateString('es-ES', { 
-            weekday: 'long', 
-            day: 'numeric', 
+          {new Date().toLocaleDateString('es-ES', {
+            weekday: 'long',
+            day: 'numeric',
             month: 'long'
           })}
         </Typography>
@@ -122,16 +162,16 @@ export const UserMenu = () => {
 
       {/* Notificaciones */}
       <IconButton size="small" sx={{ color: '#666' }}>
-        <Badge badgeContent={user.notificaciones} color="error">
+        <Badge badgeContent={user?.notificaciones || 0} color="error">
           <Notifications />
         </Badge>
       </IconButton>
-      
+
       {/* Área de usuario clickeable */}
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
           cursor: 'pointer',
           padding: '4px 8px',
           borderRadius: 1,
@@ -142,23 +182,29 @@ export const UserMenu = () => {
         }}
         onClick={handleClick}
       >
-        <Avatar 
-          src={user.foto} 
-          sx={{ 
-            width: 32, 
-            height: 32, 
+        <Avatar
+          src={user?.foto}
+          sx={{
+            width: 32,
+            height: 32,
             mr: 1,
             backgroundColor: roleConfig.color,
             fontSize: '0.9rem'
           }}
         >
-          {user.foto ? null : (
-            user.nombre_completo.split(' ').map(n => n[0]).join('').substring(0, 2)
+          {user?.foto ? null : (
+            getNombreApellido(user).split(' ').map(n => n[0]).join('').substring(0, 2)
           )}
         </Avatar>
-        <Box>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            flexDirection: 'column'
+          }}
+        >
           <Typography variant="body2" sx={{ color: '#333', fontWeight: 500 }}>
-            {user.nombre_completo}
+            {getNombreApellido(user) || 'Usuario'}
           </Typography>
           <Typography variant="caption" sx={{ color: '#666', fontSize: '0.7rem' }}>
             {roleConfig.label}
@@ -199,33 +245,33 @@ export const UserMenu = () => {
         {/* Información del usuario */}
         <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #e0e0e0' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Avatar 
-              src={user.foto}
-              sx={{ 
-                width: 40, 
-                height: 40, 
+            <Avatar
+              src={user?.foto}
+              sx={{
+                width: 40,
+                height: 40,
                 mr: 1.5,
-                backgroundColor: roleConfig.color 
+                backgroundColor: roleConfig.color
               }}
             >
-              {user.foto ? null : roleConfig.icon}
+              {user?.foto ? null : roleConfig.icon}
             </Avatar>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                {user.nombre_completo}
+                {getNombreApellido(user)}
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
-                {user.email}
+                {user?.email || ''}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                <Box 
-                  sx={{ 
-                    width: 8, 
-                    height: 8, 
-                    bgcolor: roleConfig.color, 
-                    borderRadius: '50%', 
-                    mr: 0.5 
-                  }} 
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    bgcolor: roleConfig.color,
+                    borderRadius: '50%',
+                    mr: 0.5
+                  }}
                 />
                 <Typography variant="caption" sx={{ fontSize: '0.7rem', color: roleConfig.color }}>
                   {roleConfig.label}
@@ -242,7 +288,7 @@ export const UserMenu = () => {
           </ListItemIcon>
           <ListItemText primary="Mi Perfil" />
         </MenuItem>
-        
+
         <MenuItem onClick={handleSettings}>
           <ListItemIcon>
             <Settings fontSize="small" />
@@ -259,6 +305,6 @@ export const UserMenu = () => {
           <ListItemText primary="Cerrar Sesión" />
         </MenuItem>
       </Menu>
-    </Box>
+    </Box >
   );
 };

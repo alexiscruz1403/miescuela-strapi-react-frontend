@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { LoaderOverlay } from "../components/LoaderOverlay";
 import backgroundImage from "../assets/img/fondo_login.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { login } from "../services/auth";
 import useUser from "../contexts/UserContext/useUser";
@@ -29,6 +29,21 @@ export const Login = () => {
 
   const { setUser } = useUser();
 
+  // Si ya existe token, redirigir según rol
+  useEffect(() => {
+    try {
+      const token = sessionStorage.getItem("access_token");
+      const storedUser = sessionStorage.getItem("user");
+      let role = sessionStorage.getItem("permissions");
+      if (!role && storedUser) {
+        try { role = JSON.parse(storedUser)?.rol; } catch {}
+      }
+      if (token) {
+        navigate(role ? "/" : "/no-access");
+      }
+    } catch {}
+  }, [navigate]);
+
   const handleLogin = async (data) => {
     setLoading(true);
 
@@ -37,11 +52,40 @@ export const Login = () => {
 
     try {
       const res = await login(email, contrasenia);
-      setUser(res.data.user);
-      sessionStorage.setItem("csrf_token", res.data.csrf_token);
-      sessionStorage.setItem("access_token", res.data.access_token);
-      sessionStorage.setItem("refresh_token", res.data.refresh_token);
-      navigate("/");
+      // res ya es response.data desde services/auth
+      const rawUser = (res && (res.user || res.usuario)) || (res?.data && (res.data.user || res.data.usuario)) || null;
+      if (rawUser) {
+        const mapToInternalRole = (name) => {
+          if (!name) return undefined;
+          const s = String(name).toLowerCase();
+          if (s.includes('admin')) return 'admin';
+          if (s.includes('director')) return 'director';
+          if (s.includes('docen')) return 'docente';
+          if (s.includes('auxil')) return 'auxiliar';
+          if (s.includes('asesor')) return 'asesor_pedagogico';
+          if (s.includes('jefe') && s.includes('aux')) return 'jefe_auxiliares';
+          if (s.includes('tutor')) return 'tutor';
+          if (s.includes('alum') || s.includes('estud') || s.includes('student')) return 'alumno';
+          return s;
+        };
+        // Preferir el rol desde roles[] del backend si existe
+        const rolesArr = Array.isArray(rawUser.roles) ? rawUser.roles : [];
+        const inferredRoleRaw = (rolesArr[0]?.nombre_rol) || rawUser.nombre_rol || rawUser.rol;
+        const inferredRole = mapToInternalRole(inferredRoleRaw);
+        const user = inferredRole ? { ...rawUser, rol: inferredRole } : rawUser;
+        setUser(user);
+        try { sessionStorage.setItem("user", JSON.stringify(user)); } catch {}
+        if (user.rol) {
+          // Sobrescribir cualquier permiso anterior con el rol interno
+          sessionStorage.setItem("permissions", user.rol);
+        }
+      }
+      const payload = res?.data || res || {};
+      if (payload.csrf_token) sessionStorage.setItem("csrf_token", payload.csrf_token);
+      if (payload.access_token) sessionStorage.setItem("access_token", payload.access_token);
+      if (payload.refresh_token) sessionStorage.setItem("refresh_token", payload.refresh_token);
+      const roleAfter = sessionStorage.getItem("permissions");
+      navigate(roleAfter ? "/" : "/no-access");
     } catch (error) {
       setServerError(error.response?.data?.message);
     } finally {
@@ -53,7 +97,7 @@ export const Login = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        width: "100%",
+        overflowX: 'hidden',
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -63,6 +107,11 @@ export const Login = () => {
         justifyContent: "center",
         px: { xs: 2, sm: 3 },
         py: { xs: 4, sm: 6 },
+      }}
+      onKeyPress={(e) => {
+        if (e.key === 'Enter') {
+          handleSubmit(handleLogin)();
+        }
       }}
     >
       <Card

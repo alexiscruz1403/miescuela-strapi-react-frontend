@@ -11,7 +11,18 @@ export const CustomLayout = ({ children }) => {
     const path = location.pathname;
     if (path === '/' || path === '') return 'general';
     const segments = path.split('/').filter(Boolean);
-    return segments[0] || 'general';
+    const first = segments[0] || 'general';
+    // Mapear rutas de administración
+    if (
+      first === 'administracion' ||
+      first === 'usuarios' ||
+      first === 'roles' ||
+      first === 'cursos' ||
+      first === 'materias'
+    ) {
+      return 'administracion';
+    }
+    return first;
   };
 
   const [moduloActivo, setModuloActivo] = useState(getCurrentModule());

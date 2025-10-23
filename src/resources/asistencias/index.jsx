@@ -25,6 +25,7 @@ import {
   usePermissions,
 } from 'react-admin';
 import { Chip, Box } from '@mui/material';
+import { getRole, allowResource } from '../../permissions/roles';
 
 // Componente personalizado para el estado de asistencia
 const EstadoField = () => {
@@ -76,16 +77,13 @@ const asistenciaFilters = [
 // Acciones personalizadas en el toolbar
 const ListActions = () => {
   const { permissions } = usePermissions();
-  
+  const role = getRole(permissions);
+  const canCreate = allowResource(role, 'asistencias', 'create');
   return (
     <TopToolbar>
       <FilterButton />
-      {(permissions === 'admin' || permissions === 'director' || permissions === 'docente') && (
-        <>
-          <CreateButton />
-          <ExportButton />
-        </>
-      )}
+      {canCreate && <CreateButton />}
+      <ExportButton />
     </TopToolbar>
   );
 };
@@ -93,6 +91,9 @@ const ListActions = () => {
 // Lista de asistencias
 export const AsistenciasList = () => {
   const { permissions } = usePermissions();
+  const role = getRole(permissions);
+  const canEdit = allowResource(role, 'asistencias', 'edit');
+  const canDelete = allowResource(role, 'asistencias', 'delete');
 
   return (
     <List
@@ -121,12 +122,8 @@ export const AsistenciasList = () => {
         <EstadoField label="Estado" />
         <TextField source="observaciones" label="Observaciones" />
         
-        {(permissions === 'admin' || permissions === 'director' || permissions === 'docente') && (
-          <>
-            <EditButton />
-            <DeleteButton />
-          </>
-        )}
+        {canEdit && <EditButton />}
+        {canDelete && <DeleteButton />}
         <ShowButton />
       </Datagrid>
     </List>
