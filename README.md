@@ -1,5 +1,7 @@
 📘 MiEscuela 4.0 – Frontend
 
+Repositorio copia utilizado para Framework e Interoperaabilidad. Repositorio original: https://github.com/psantueno/TF-MiEscuela-Frontend
+
 🚀 Tecnologías principales
 
 React 18 + Vite → base del proyecto (rápido, moderno y con React Compiler activado).
