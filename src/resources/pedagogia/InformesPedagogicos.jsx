@@ -131,11 +131,11 @@ export const InformesPedagogicos = () => {
                 id_informe: informe.id_informe,
                 fecha: new Date(informe.fecha).toLocaleDateString(),
                 contenido: informe.contenido,
-                asesorPedagogico: `${informe.asesorPedagogico.usuario.apellido} ${informe.asesorPedagogico.usuario.nombre}`,
-                materia: informe.materiaCurso.materia.nombre,
-                curso: `${informe.materiaCurso.curso.anio_escolar}° ${informe.materiaCurso.curso.division}`,
-                alumno: `${informe.alumno.usuario.apellido} ${informe.alumno.usuario.nombre}`,
-                docente: `${informe.docente.usuario.apellido} ${informe.docente.usuario.nombre}`,
+                asesorPedagogico: `${informe.asesorPedagogico.apellido} ${informe.asesorPedagogico.nombre}`,
+                materia: informe.materia.nombre,
+                curso: `${informe.curso.anio_escolar}° ${informe.curso.division}`,
+                alumno: `${informe.alumno.apellido} ${informe.alumno.nombre}`,
+                docente: `${informe.docente.apellido} ${informe.docente.nombre}`,
             })));
 
             if(data.length !== 0){

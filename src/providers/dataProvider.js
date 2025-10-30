@@ -1,9 +1,8 @@
 import { fetchUtils } from 'react-admin';
 import { stringify } from 'query-string';
-import { api } from "../services/api"
-import { get } from 'react-hook-form';
+import { api } from "../services/api";
 
-const API_URL = 'http://localhost:6543/api';
+const API_URL = 'http://localhost:6543/soap';
 
 const httpClient = (url, options = {}) => {
   if (!options.headers) {
